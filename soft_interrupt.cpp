@@ -27,9 +27,9 @@ int main()
 		if(pid2 > 0) 
 		{
 			wait_flag = 1;
-            signal(SIGINT,stop);
+            signal(SIGQUIT,stop);//signal(SIGINT,stop);
 			signal(SIGALRM,SIG_IGN);//signal(SIGALRM,stop);
-			alarm(5);
+			alarm(5);//sleep(5);
             while(wait_flag == 1);
 			kill(pid1,16);
 			kill(pid2,17);
@@ -41,7 +41,7 @@ int main()
 		else 
 		{
 			wait_flag = 1;
-			signal(SIGINT,SIG_IGN);
+			signal(SIGQUIT,SIG_IGN);//signal(SIGINT,SIG_IGN);
 			signal(17,stop);
 			while(wait_flag == 1);
 			printf("Child process 2 is killed by parent !!\n");
@@ -52,7 +52,7 @@ int main()
     {
 		wait_flag = 1;
 		signal(16,stop);
-		signal(SIGINT,SIG_IGN);
+		signal(SIGQUIT,SIG_IGN);//signal(SIGINT,SIG_IGN);
 		while(wait_flag == 1);
 		printf("Child process 1 is killed by parent !!\n");
 		exit(0);
