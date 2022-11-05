@@ -55,7 +55,7 @@ int set_mem_size(){
     if(flag!=0){  //防止重复设置
         printf("Cannot set memory size again\n");
         return 0;
-        }
+    }
     printf("Total memory size =");
     scanf("%d", &size);
     if(size>0) {
@@ -93,7 +93,7 @@ int new_process(){
     ab=(struct allocated_block *)malloc(sizeof(struct allocated_block));
     if(!ab) exit(-5);
     ab->next = NULL;
-    pid++;
+    pid++;//静态变量，所有allocated_block公用一个
     sprintf(ab->process_name, "PROCESS-%02d", pid);
     ab->pid = pid;    
     printf("Memory for %s:", ab->process_name);
