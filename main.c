@@ -15,8 +15,8 @@ int main()
         switch(choice){
             case '1': set_mem_size(); break; 	//设置内存大小,仅改变了内存大小，起始地点没改变
             case '2': set_algorithm();flag=1; break;//设置算法，并且用算法重排空闲区链表
-            case '3': new_process(); flag=1; break;//创建新进程
-            case '4': kill_process(); flag=1;   break;//删除进程
+            case '3': new_process(); flag=1; break;//创建新进程，并且将其放在已分配内存块的pcb链表的第一个
+            case '4': kill_process(); flag=1;   break;//删除进程，释放内存，并且从链表中删除
             case '5': display_mem_usage();    flag=1; break;	//显示内存使用
             case '0': do_exit(); exit(0);	//释放链表并退出
             default: break;      

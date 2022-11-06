@@ -12,9 +12,9 @@ void display_menu();
 int set_mem_size();
 void set_algorithm();
 void rearrange(int algorithm);
-void rearrange_FF();//
-void rearrange_BF();//
-void rearrange_WF();//
+int rearrange_FF();//
+int rearrange_BF();//
+int rearrange_WF();//
 int new_process();
 int allocate_mem(struct allocated_block *ab);//
 void kill_process();
@@ -108,7 +108,7 @@ int new_process(){
     else if (ret==1) {
         ab->next=allocated_block_head;
         allocated_block_head=ab;
-        return 2;        }
+        return 2;        }//永远把新分配的节点放在第一个
     else if(ret==-1){ /*分配不成功*/
         printf("Allocation fail\n");
         free(ab);
@@ -128,6 +128,7 @@ int allocate_mem(struct allocated_block *ab){//finish this
     // 4. 在成功分配内存后，应保持空闲分区按照相应算法有序
     // 5. 分配成功则返回1，否则返回-1
     //请自行补充。。。。。
+    
 }
 
 void kill_process(){
@@ -141,7 +142,7 @@ void kill_process(){
         dispose(ab);  /*释放ab数据结构节点*/
         }
 }
-
+//need finish
 int free_mem(struct allocated_block *ab){
      int algorithm = ma_algorithm;
     struct free_block_type *fbt, *pre, *work;
@@ -158,11 +159,11 @@ int free_mem(struct allocated_block *ab){
 
 int dispose(struct allocated_block *free_ab){
     struct allocated_block *pre, *ab;
-   if(free_ab == allocated_block_head) { /*如果要释放第一个节点*/
+    if(free_ab == allocated_block_head) { /*如果要释放第一个节点*/
      allocated_block_head = allocated_block_head->next;
         free(free_ab);
         return 1;
-        }
+    }
     pre = allocated_block_head;  
     ab = allocated_block_head->next;
     while(ab!=free_ab){ pre = ab;  ab = ab->next; }
@@ -197,19 +198,94 @@ int display_mem_usage(){
 
 }
 
-void rearrange_FF(){
-    int a=1;
-}
-void rearrange_BF(){
-    int  a=  1;
-}
-void rearrange_WF(){
-    int a = 1;
+int rearrange_FF(){
+    if( free_block = NULL) return -1;
+    else return 1;
 }
 
+int rearrange_BF(){
+    struct free_block_type *pre,*pnext,*ptem = free_block;
+    if(pre == NULL) return -1;
+    else{
+        pnext = pre->next;
+        int num = 1;
+        while(pnext){
+            num++;
+            pre = pnext;
+            pnext = pre->next;
+        }
+        if(num == 1) return 1;
+        else{
+            for(int i = 0;i < num-1 ;i++){//冒泡排序
+                int tem = num - i - 2;
+                pre = free_block->next;
+                pnext = pre->next;
+                ptem = free_block;
+                if(ptem->size > pre->size){
+                    ptem->next = pre->next;
+                    pre->next = ptem;
+                    free_block = pre;
+                }
+                while(tem > 0){
+                    if(pre->size > pnext->size){
+                        pre->next = pnext->next;
+                        pnext->next = pre;
+                        ptem->next = pnext;
+                    }
+                    ptem = ptem->next;
+                    pre = pre->next;
+                    pnext = pnext->next;   
+                    tem--;
+                }
+            }
+        }
+        return 1;
+    }
+}
+
+int rearrange_WF(){
+    struct free_block_type *pre,*pnext,*ptem = free_block;
+    if(pre == NULL) return -1;
+    else{
+        pnext = pre->next;
+        int num = 1;
+        while(pnext){
+            num++;
+            pre = pnext;
+            pnext = pre->next;
+        }
+        if(num == 1) return 1;
+        else{
+            for(int i = 0;i < num-1 ;i++){//冒泡排序
+                int tem = num - i - 2;
+                pre = free_block->next;
+                pnext = pre->next;
+                ptem = free_block;
+                if(ptem->size < pre->size){
+                    ptem->next = pre->next;
+                    pre->next = ptem;
+                    free_block = pre;
+                }
+                while(tem > 0){
+                    if(pre->size < pnext->size){
+                        pre->next = pnext->next;
+                        pnext->next = pre;
+                        ptem->next = pnext;
+                    }
+                    ptem = ptem->next;
+                    pre = pre->next;
+                    pnext = pnext->next;   
+                    tem--;
+                }
+            }
+        }
+        return 1;
+    }
+}
 
 
 
+//need finish
 struct allocated_block * find_process(int pid){
 
 }
