@@ -128,7 +128,176 @@ int allocate_mem(struct allocated_block *ab){//finish this
     // 4. 在成功分配内存后，应保持空闲分区按照相应算法有序
     // 5. 分配成功则返回1，否则返回-1
     //请自行补充。。。。。
-    
+    int flag1 = 0;//判断是否分配成功
+    switch (ma_algorithm)
+    {
+    case MA_FF://前两种情况
+        while(fbt){
+            if(fbt->size > ab->size){//2
+                if(fbt->size - ab->size <MIN_SLICE){
+                    ab->start_addr = fbt->start_addr;
+                    flag1 = 1;
+                    if(fbt == free_block) free_block = fbt->next;
+                    else pre->next = fbt->next;
+                    fbt = NULL;
+                    pre = NULL;
+                    break;
+                }
+                else{//1
+                    struct free_block_type *ptem;
+                    ptem = (struct free_block_type *)malloc(sizeof(struct free_block_type));
+                    ptem->size = fbt->size - ab->size;
+                    ptem->start_addr = fbt->start_addr + ab->size;
+                    ptem->next = fbt->next;
+                    flag1 = 1;
+                    ab->start_addr = fbt->start_addr;
+                    if(fbt == free_block) free_block = ptem;
+                    else pre->next = ptem;         
+                    fbt = NULL;
+                    pre = NULL;
+                    break;
+                }
+            }
+            pre = fbt;
+            fbt = fbt->next;
+        }
+        break;
+    case MA_BF:
+        while(fbt){
+            if(fbt->size > ab->size){//2
+                if(fbt->size - ab->size <MIN_SLICE){
+                    ab->start_addr = fbt->start_addr;
+                    flag1 = 1;
+                    if(fbt == free_block) free_block = fbt->next;
+                    else pre->next = fbt->next;
+                    fbt = NULL;
+                    pre = NULL;
+                    break;
+                }
+                else{//1
+                    struct free_block_type *ptem;
+                    ptem = (struct free_block_type *)malloc(sizeof(struct free_block_type));
+                    ptem->size = fbt->size - ab->size;
+                    ptem->start_addr = fbt->start_addr + ab->size;
+                    ptem->next = fbt->next;
+                    flag1 = 1;
+                    ab->start_addr = fbt->start_addr;
+                    if(fbt == free_block) free_block = ptem;
+                    else pre->next = ptem;         
+                    fbt = NULL;
+                    pre = NULL;
+                    break;
+                }
+            }
+            pre = fbt;
+            fbt = fbt->next;
+        }
+        break;
+    case MA_WF:
+            if(fbt->size > ab->size){//2
+                if(fbt->size - ab->size <MIN_SLICE){
+                    ab->start_addr = fbt->start_addr;
+                    flag1 = 1;
+                    free_block = fbt->next;
+                    fbt = NULL;
+                    pre = NULL;
+                    break;
+                }
+                else{//1
+                    struct free_block_type *ptem;
+                    ptem = (struct free_block_type *)malloc(sizeof(struct free_block_type));
+                    ptem->size = fbt->size - ab->size;
+                    ptem->start_addr = fbt->start_addr + ab->size;
+                    ptem->next = fbt->next;
+                    flag1 = 1;
+                    ab->start_addr = fbt->start_addr;
+                    free_block = ptem;        
+                    fbt = NULL;
+                    pre = NULL;
+                    break;
+                }
+            }
+    default:
+        break;
+    }
+    //上边switch为前两种情况，下边为内存压缩技术
+    if(!flag1){
+        int flag2 = 0;//判断是否形成连续的一大片
+        int total = 0;
+        int times1 = 0;//开始位置，当找到满足要求的碎片的开始点时的迭代次数
+        int times2 = 0;//结束位置,总的迭代次数
+        fbt = free_block;
+        while(fbt&&fbt->next){//寻找是否有一大连续片加起来可以容纳进程
+             if(!flag2){
+                times1 = times2;
+                total = fbt->size;
+             }
+             if(fbt->start_addr+fbt->size == fbt->next->start_addr){
+                total += fbt->next->size;
+                flag2 = 1;
+             }
+             else flag2 = 0;
+             times2++;
+             if(total >= ab->size){
+                flag1 = 1;//找到可以连续分配的一大片地方了
+                break;
+             }
+             fbt = fbt->next;
+        }
+        if(flag1){//找到后开始把这一片划归为连续的一大片
+            pre = free_block;
+            fbt = free_block;
+            for(int i = 0;i < times2 + 1 ;i++){
+                fbt = fbt->next;
+            }
+            for(int i = 0;i < times1 ;i++){
+                pre = pre->next;
+            }
+            struct free_block_type * p = free_block;
+            for(int i = 0;i < times1 - 1 ; i++){
+                p = p->next;
+            }
+            //判断是否分配的过多
+            if(total - ab->size < MIN_SLICE){//不过多
+                ab->start_addr = pre->start_addr;
+                if(times1 == 0){
+                    free_block = fbt;
+                }
+                else{
+                    p->next = fbt;
+                }
+            }
+            else{//过多了，需要将大片裁剪一下
+                    struct free_block_type * ptem;
+                    ptem = (struct free_block_type *)malloc(sizeof(struct free_block_type));
+                    ptem->size = total - ab->size;
+                    ptem->start_addr = pre->start_addr + ab->size;
+                    ptem->next = fbt;
+                    ab->start_addr = pre->start_addr;
+                    if(times1 == 0) free_block = ptem;
+                    else p->next = ptem;         
+                    fbt = NULL;
+                    pre = NULL;
+            }
+        }
+    }
+    //1,2,3步骤结束
+    if(flag1){
+        switch (ma_algorithm)
+        {
+        case MA_FF:
+            rearrange_FF();
+            break;
+        case MA_BF:
+            rearrange_BF();
+        case MA_WF:
+            rearrange_WF();
+        default:
+            break;
+        }
+        return 1;
+    }
+    else return -1;
 }
 
 void kill_process(){
