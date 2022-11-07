@@ -21,7 +21,7 @@ void kill_process();
 int free_mem(struct allocated_block *ab);//
 int dispose(struct allocated_block *free_ab);
 int display_mem_usage();
-struct allocated_block * find_process(int pid);//
+struct allocated_block * find_process(int abpid);//
 void do_exit();
 
 
@@ -97,7 +97,12 @@ int new_process(){
     ab->pid = pid;    
     printf("Memory for %s:", ab->process_name);
     scanf("%d", &size);
+    if(size ==  0){
+        printf("Allocation can't be ZERO!\nAllocation fail!\n");
+        return -1;
+    }
     if(size>0) ab->size=size;
+    if(size < MIN_SLICE) ab->size = MIN_SLICE;//保证MIN_SLICE
     ret = allocate_mem(ab);  /* 从空闲区分配内存，ret==1表示分配ok*/
     /*如果此时allocated_block_head尚未赋值，则赋值*/
     if((ret==1) &&(allocated_block_head == NULL)){ 
@@ -120,6 +125,7 @@ int allocate_mem(struct allocated_block *ab){//finish this
     struct free_block_type *fbt, *pre;
     int request_size=ab->size;
     fbt = pre = free_block;
+    if(!free_block) return -1;
     //根据当前算法在空闲分区链表中搜索合适空闲分区进行分配，分配时注意以下情况：
     // 1. 找到可满足空闲分区且分配后剩余空间足够大，则分割
     // 2. 找到可满足空闲分区且但分配后剩余空间比较小，则一起分配
@@ -283,7 +289,7 @@ int allocate_mem(struct allocated_block *ab){//finish this
 
     //下边是另一种实现方法
     while(fbt){
-        if(fbt->size > request_size){
+        if(fbt->size >= request_size){
             if(fbt->size - request_size < MIN_SLICE){//剩余空间太小，直接分配
                 //pre = fbt->next;
                 ab->start_addr = fbt->start_addr;
@@ -311,9 +317,10 @@ int allocate_mem(struct allocated_block *ab){//finish this
         fbt = fbt->next;
     }
     if(!flag1){//没有一整个可以满足要求的,进行内存压缩
-        pre = free_block;
+        //pre = free_block;
         fbt = free_block->next;
-        while(pre){
+        int total = free_block->size;
+        /*while(pre){
             fbt = pre->next;
             if(fbt&&(pre->start_addr + pre->size == fbt->start_addr)){
                 pre->size += fbt->size;
@@ -321,34 +328,48 @@ int allocate_mem(struct allocated_block *ab){//finish this
                 continue;
             }
             pre = pre->next;
-        }
-        fbt = free_block;
-        while(fbt){//再次进行内存分配
-            if(fbt->size > request_size){
-                if(fbt->size - request_size < MIN_SLICE){//剩余空间太小，直接分配
-                    //pre = fbt->next;
-                    ab->start_addr = fbt->start_addr;
-                    mem_size -= fbt->size;
-                    fbt->start_addr +=fbt->size;
-                    //free(fbt);
-                }
-                else{
-                    mem_size -= request_size;
-                    fbt->size -=request_size;
-                    ab->start_addr = fbt->start_addr;
-                    fbt->start_addr += request_size;
-                }
-                flag1 = 1;
-                break;
-            }
+        }*/
+        while(fbt){//先看看总共的空间是多少
+            total += fbt->size;
             fbt = fbt->next;
         }
+        if(total >= ab->size){//总共的空间够用的时候就开始内存压缩
+            flag1 = 1;
+            struct allocated_block * tem = allocated_block_head->next;
+            int position = allocated_block_head->size;
+            allocated_block_head->start_addr = 0;
+            while(tem){
+                tem->start_addr = position;
+                position += tem->size;
+                tem = tem->next;
+            }
+            free_block->size = total;
+            free_block->start_addr = position;
+        }
+        fbt = free_block;
+        if(flag1){
+            while(fbt){//再次进行内存分配
+                if(fbt->size > request_size){
+                    if(fbt->size - request_size < MIN_SLICE){//剩余空间太小，直接分配
+                        //pre = fbt->next;
+                        ab->start_addr = fbt->start_addr;
+                        mem_size -= fbt->size;
+                        fbt->start_addr +=fbt->size;
+                        //free(fbt);
+                    }
+                    else{
+                        mem_size -= request_size;
+                        fbt->size -=request_size;
+                        ab->start_addr = fbt->start_addr;
+                        fbt->start_addr += request_size;
+                    }
+                    flag1 = 1;
+                    break;
+                }
+                fbt = fbt->next;
+            }
+        }
     }
-    
-
-
-
-
     //1,2,3步骤结束
     if(flag1){
         switch (ma_algorithm)
@@ -373,17 +394,17 @@ void kill_process(){
     int pid;
     printf("Kill Process, pid=");
     scanf("%d", &pid);
-    ab=find_process(pid);
+    ab=find_process(pid);printf("`````%d\n",ab->pid);
     if(ab!=NULL){
         free_mem(ab); /*释放ab所表示的分配区*/
         dispose(ab);  /*释放ab数据结构节点*/
-        }
+    }
 }
 //need finish
 int free_mem(struct allocated_block *ab){
-     int algorithm = ma_algorithm;
+    int algorithm = ma_algorithm;
     struct free_block_type *fbt, *pre, *work;
-   fbt=(struct free_block_type*) malloc(sizeof(struct free_block_type));
+    fbt=(struct free_block_type*) malloc(sizeof(struct free_block_type));
     if(!fbt) return -1;
     // 进行可能的合并，基本策略如下
     // 1. 将新释放的结点插入到空闲分区队列末尾
@@ -391,7 +412,30 @@ int free_mem(struct allocated_block *ab){
     // 3. 检查并合并相邻的空闲分区
     // 4. 将空闲链表重新按照当前算法排序
     //请自行补充……
-    //return 1;
+    //1
+    fbt->size = ab->size;
+    fbt->start_addr = ab->start_addr;
+    fbt->next = free_block;
+    free_block = fbt;
+    //2
+    rearrange(MA_FF);
+    //3
+    fbt = pre = free_block;
+    //fbt = pre->next;
+    while(pre){
+        fbt = pre->next;//printf("lllll\n");
+        if(fbt){
+            if(pre->start_addr + pre->size == fbt->start_addr){
+                pre->size += fbt->size;
+                pre->next = fbt->next;
+                continue;
+            }
+        }
+        pre = pre->next;
+    }
+    //4
+    rearrange(algorithm);
+    return 1;
 }
 
 int dispose(struct allocated_block *free_ab){
@@ -407,7 +451,6 @@ int dispose(struct allocated_block *free_ab){
     pre->next = ab->next;
     free(ab);
     return 2;
-
 }
 
 int display_mem_usage(){
@@ -503,12 +546,32 @@ int rearrange_WF(){
 
 
 //need finish
-struct allocated_block * find_process(int pid){
-
+struct allocated_block * find_process(int abpid){
+    struct allocated_block * tem = allocated_block_head;printf("check\n");
+    while(tem){
+        if(tem->pid == abpid) return tem;
+        tem = tem->next;
+    }
+    return NULL;
 }
 
 void do_exit(){
-    
+    struct free_block_type * fpre,*fbt;
+    struct allocated_block * abpre,* ab; 
+    fpre = free_block;
+    fbt = fpre->next;
+    abpre = allocated_block_head;
+    ab = abpre->next;
+    while(fpre){
+        free(fpre);
+        fpre = fbt;
+        if(fbt) fbt = fbt->next;
+    }
+    while(abpre){
+        free(abpre);
+        abpre = ab;
+        if(ab) ab = ab->next;
+    }
 }
 
 
