@@ -31,12 +31,11 @@ struct free_block_type * init_free_block(int mem_size){
     if(fb==NULL){
         printf("No mem\n");
         return NULL;
-        }
+    }
     fb->size = mem_size;
     fb->start_addr = DEFAULT_MEM_START;
     fb->next = NULL;
     return fb;
-
 }
 
 void display_menu(){
@@ -129,7 +128,7 @@ int allocate_mem(struct allocated_block *ab){//finish this
     // 5. 分配成功则返回1，否则返回-1
     //请自行补充。。。。。
     int flag1 = 0;//判断是否分配成功
-    switch (ma_algorithm)
+    /*switch (ma_algorithm)
     {
     case MA_FF://前两种情况
         while(fbt){
@@ -280,7 +279,76 @@ int allocate_mem(struct allocated_block *ab){//finish this
                     pre = NULL;
             }
         }
+    }*/
+
+    //下边是另一种实现方法
+    while(fbt){
+        if(fbt->size > request_size){
+            if(fbt->size - request_size < MIN_SLICE){//剩余空间太小，直接分配
+                //pre = fbt->next;
+                ab->start_addr = fbt->start_addr;
+                mem_size -= fbt->size;
+                ab->size = fbt->size;
+                if(fbt == free_block){
+                    free_block = fbt->next;
+                }
+                else{
+                    pre->next = fbt->next;
+                }
+                //fbt->start_addr +=fbt->size;
+                free(fbt);
+            }
+            else{
+                mem_size -= request_size;
+                fbt->size -=request_size;
+                ab->start_addr = fbt->start_addr;
+                fbt->start_addr += request_size;
+            }
+            flag1 = 1;
+            break;
+        }
+        pre = fbt;
+        fbt = fbt->next;
     }
+    if(!flag1){//没有一整个可以满足要求的,进行内存压缩
+        pre = free_block;
+        fbt = free_block->next;
+        while(pre){
+            fbt = pre->next;
+            if(fbt&&(pre->start_addr + pre->size == fbt->start_addr)){
+                pre->size += fbt->size;
+                pre->next = fbt->next;
+                continue;
+            }
+            pre = pre->next;
+        }
+        fbt = free_block;
+        while(fbt){//再次进行内存分配
+            if(fbt->size > request_size){
+                if(fbt->size - request_size < MIN_SLICE){//剩余空间太小，直接分配
+                    //pre = fbt->next;
+                    ab->start_addr = fbt->start_addr;
+                    mem_size -= fbt->size;
+                    fbt->start_addr +=fbt->size;
+                    //free(fbt);
+                }
+                else{
+                    mem_size -= request_size;
+                    fbt->size -=request_size;
+                    ab->start_addr = fbt->start_addr;
+                    fbt->start_addr += request_size;
+                }
+                flag1 = 1;
+                break;
+            }
+            fbt = fbt->next;
+        }
+    }
+    
+
+
+
+
     //1,2,3步骤结束
     if(flag1){
         switch (ma_algorithm)
@@ -345,7 +413,7 @@ int dispose(struct allocated_block *free_ab){
 int display_mem_usage(){
     struct free_block_type *fbt=free_block;
     struct allocated_block *ab=allocated_block_head;
-    if(fbt==NULL) return(-1);
+    //if(fbt==NULL) return(-1);
     printf("----------------------------------------------------------\n");
 
     /* 显示空闲区 */
@@ -367,89 +435,69 @@ int display_mem_usage(){
 
 }
 
-int rearrange_FF(){
-    if( free_block = NULL) return -1;
-    else return 1;
+int rearrange_FF(){//按照地址从小到大排列
+   struct free_block_type * pre,*pnext;
+   pre = free_block;
+   while(pre){
+        pnext = pre->next;
+        while(pnext){
+            if(pre->start_addr > pnext->start_addr){
+                int tem = pnext->start_addr;
+                pnext->start_addr = pre->start_addr;
+                pre->start_addr = tem;
+                tem = pre->size;
+                pre->size = pnext->size;
+                pnext->size = tem;
+            }
+            else pnext = pnext->next;
+        }
+        pre = pre->next;
+   }
+   return 1;
 }
 
 int rearrange_BF(){
-    struct free_block_type *pre,*pnext,*ptem = free_block;
-    if(pre == NULL) return -1;
-    else{
-        pnext = pre->next;
-        int num = 1;
-        while(pnext){
-            num++;
-            pre = pnext;
-            pnext = pre->next;
-        }
-        if(num == 1) return 1;
-        else{
-            for(int i = 0;i < num-1 ;i++){//冒泡排序
-                int tem = num - i - 2;
-                pre = free_block->next;
-                pnext = pre->next;
-                ptem = free_block;
-                if(ptem->size > pre->size){
-                    ptem->next = pre->next;
-                    pre->next = ptem;
-                    free_block = pre;
-                }
-                while(tem > 0){
-                    if(pre->size > pnext->size){
-                        pre->next = pnext->next;
-                        pnext->next = pre;
-                        ptem->next = pnext;
-                    }
-                    ptem = ptem->next;
-                    pre = pre->next;
-                    pnext = pnext->next;   
-                    tem--;
-                }
+    struct free_block_type *fbt,*pre;
+    pre = free_block;
+    while(pre){
+        fbt = pre->next;
+        while(fbt){
+            if(fbt->size > pre->size){
+                int tem;
+                tem = fbt->size;
+                fbt->size = pre->size;
+                pre->size = tem;
+                tem = fbt->start_addr;
+                fbt->start_addr = pre->start_addr;
+                pre->start_addr = fbt->start_addr;
             }
+            else fbt = fbt->next;
         }
-        return 1;
+        pre = pre->next;
     }
+    return 1;
 }
 
 int rearrange_WF(){
-    struct free_block_type *pre,*pnext,*ptem = free_block;
-    if(pre == NULL) return -1;
-    else{
-        pnext = pre->next;
-        int num = 1;
-        while(pnext){
-            num++;
-            pre = pnext;
-            pnext = pre->next;
-        }
-        if(num == 1) return 1;
-        else{
-            for(int i = 0;i < num-1 ;i++){//冒泡排序
-                int tem = num - i - 2;
-                pre = free_block->next;
-                pnext = pre->next;
-                ptem = free_block;
-                if(ptem->size < pre->size){
-                    ptem->next = pre->next;
-                    pre->next = ptem;
-                    free_block = pre;
-                }
-                while(tem > 0){
-                    if(pre->size < pnext->size){
-                        pre->next = pnext->next;
-                        pnext->next = pre;
-                        ptem->next = pnext;
-                    }
-                    ptem = ptem->next;
-                    pre = pre->next;
-                    pnext = pnext->next;   
-                    tem--;
-                }
+    struct free_block_type *fbt,*pre;
+    pre = free_block;
+    while(pre){
+        fbt = pre->next;
+        while(fbt){
+            if(fbt->size > pre->size){
+                int tem;
+                tem = fbt->size;
+                fbt->size = pre->size;
+                pre->size = tem;
+                tem = fbt->start_addr;
+                fbt->start_addr = pre->start_addr;
+                pre->start_addr = fbt->start_addr;
             }
+            else fbt = fbt->next;
         }
-        return 1;
+        pre = pre->next;
     }
+    return 1;
 }
 
 
